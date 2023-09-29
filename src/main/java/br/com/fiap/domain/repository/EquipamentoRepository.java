@@ -9,48 +9,42 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class EquipamentoRepository implements Repository<Equipamento, Long> {
+public class EquipamentoRepository implements Repository<Equipamento, Long>{
 
-    private static final AtomicReference<EquipamentoRepository> instance = new AtomicReference<>();
+    private static final AtomicReference<EquipamentoRepository> instance  = new AtomicReference<>();
 
-    private EquipamentoRepository() {
+    private EquipamentoRepository(){
+
     }
 
-    public static EquipamentoRepository build() {
+    public static EquipamentoRepository build(){
         EquipamentoRepository result = instance.get();
-        if (Objects.isNull( result )) {
+        if (Objects.isNull(result)){
             EquipamentoRepository repo = new EquipamentoRepository();
-            if (instance.compareAndSet( null, repo )) {
+            if (instance.compareAndSet(null,repo)){
                 result = repo;
-            } else {
+            }else {
                 result = instance.get();
             }
         }
         return result;
     }
 
-    @Override
-    public Equipamento persist(Equipamento equipamento) {
-        var sql = "BEGIN" +
-                " INSERT INTO equipamento (NM_EQUIPAMENTO) " +
-                "VALUES (?) " +
-                "returning ID_EQUIPAMENTO into ?; " +
-                "END;" +
-                "";
-
-
+    public Equipamento persist(Equipamento equipamento){
+        var sql = "BEGIN" + " INSERT INTO equipamento (NM_EQUIPAMENTO,DS_EQUIPAMENTO)" +  "VALUES (?,?) " + "returning ID_EQUIPAMENTO into ?; " + "END;" + "";
 
         var factory = ConnectionFactory.build();
         Connection connection = factory.getConnection();
 
-
         CallableStatement cs = null;
+
         try {
             cs = connection.prepareCall( sql );
             cs.setString( 1, equipamento.getNome() );
-            cs.registerOutParameter( 2, Types.BIGINT );
+            cs.setString( 2, equipamento.getDescrição() );
+            cs.registerOutParameter( 3, Types.BIGINT );
             cs.executeUpdate();
-            equipamento.setId( cs.getLong( 2 ) );
+            equipamento.setId( cs.getLong( 3 ) );
             cs.close();
             connection.close();
         } catch (SQLException e) {
@@ -59,42 +53,43 @@ public class EquipamentoRepository implements Repository<Equipamento, Long> {
         return equipamento;
     }
 
-    @Override
-    public List<Equipamento> findAll() {
-        List<Equipamento> equipamento = new ArrayList<>();
+    public List<Equipamento> findAll(){
+        List<Equipamento> equipamentos = new ArrayList<>();
 
         try {
-
-            var factory = ConnectionFactory.build();
+            var factory =   ConnectionFactory.build();
             Connection connection = factory.getConnection();
 
             Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery( "SELECT * FROM EQUIPAMENTO" );
+            ResultSet resultSet = statement.executeQuery("SELECT * FROM EQUIPAMENTO");
 
-            if (resultSet.isBeforeFirst()) {
-                while (resultSet.next()) {
-                    Long id = resultSet.getLong( "ID_EQUIPAMENTO" );
-                    String nome = resultSet.getString( "NM_EQUIPAMENTO" );
+            if (resultSet.isBeforeFirst()){
+                while (resultSet.next()){
+                    Long id = resultSet.getLong("ID_EQUIPAMENTO");
+                    String nome = resultSet.getString("NM_EQUIPAMENTO");
                     String descrição = resultSet.getString("DS_EQUIPAMENTO");
-                    equipamento.add( new Equipamento( id, nome, descrição ) );
+
+                    //adicionando equipamento na coleção
+                    equipamentos.add(new Equipamento(id,nome, descrição));
                 }
             }
 
             resultSet.close();
             statement.close();
             connection.close();
-        } catch (SQLException e) {
-            System.err.println( "Não foi possivel consultar os dados!\n" + e.getMessage() );
+
+        }catch (SQLException e){
+            System.err.println("Não foi possivel consultar os dados!\n" + e.getMessage() );
         }
-        return equipamento;
+        return equipamentos;
     }
 
-    @Override
-    public Equipamento findById(Long id) {
+
+    public Equipamento findById(Long id){
         Equipamento equipamento = null;
         var sql = "SELECT * FROM equipamento where ID_EQUIPAMENTO=?";
 
-        var factory = ConnectionFactory.build();
+        var factory =   ConnectionFactory.build();
         Connection connection = factory.getConnection();
 
         try {
@@ -121,37 +116,37 @@ public class EquipamentoRepository implements Repository<Equipamento, Long> {
         return equipamento;
     }
 
-    @Override
-    public Equipamento update(Equipamento equipamento) {
-
+    public Equipamento update (Equipamento equipamento){
         PreparedStatement ps = null;
 
-        var sql = "UPDATE equipamento SET NM_EQUIPAMENTO = ? where ID_EQUIPAMENTO=?";
+        var sql = "UPDATE equipamento SET NM_EQUIPAMENTO = ? where ID_EQUIPAMENTO =?";
 
-        ConnectionFactory factory = ConnectionFactory.build();
+        var factory =   ConnectionFactory.build();
         Connection connection = factory.getConnection();
 
         try {
             ps = connection.prepareStatement(sql);
             ps.setString(1, equipamento.getNome());
             ps.setLong(2, equipamento.getId());
-            int itensAtualizados = ps.executeUpdate();
+            int intensAtualizados = ps.executeUpdate();
 
             ps.close();
             connection.close();
-            if (itensAtualizados > 0) return findById(equipamento.getId());
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            if (intensAtualizados > 0) return findById((equipamento.getId()));
+        }catch (SQLException e){
+            throw  new RuntimeException(e);
         }
         return null;
     }
 
-    @Override
-    public boolean delete(Long id) {
+    public boolean delete(Long id){
         PreparedStatement ps = null;
-        var sql = "DELETE from equipamento where ID_EQUIPAMENTO=?";
-        ConnectionFactory factory = ConnectionFactory.build();
+
+        var sql = "DELETE FROM SET EQUIPAMENTO WHERE ID_EQUIPAMENTO =?";
+
+        var factory =   ConnectionFactory.build();
         Connection connection = factory.getConnection();
+
         try {
             ps = connection.prepareStatement(sql);
             ps.setLong(1,id);
@@ -159,9 +154,10 @@ public class EquipamentoRepository implements Repository<Equipamento, Long> {
             ps.close();
             connection.close();
             if (itensRemovidos > 0) return true;
-        } catch (SQLException e) {
+        }catch (SQLException e){
             throw new RuntimeException(e);
         }
         return false;
     }
+
 }
